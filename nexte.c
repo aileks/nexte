@@ -24,7 +24,8 @@ struct termios orig_termios;
  * Print error message with errno context and exit.
  * perror() appends ": <system error string>" to the message.
  */
-void die(const char *s) {
+void die(const char *s)
+{
   perror(s);
   exit(1);
 }
@@ -33,7 +34,8 @@ void die(const char *s) {
  * Restore terminal to canonical mode.
  * Registered via atexit() so it runs on normal exit or die().
  */
-void disable_raw_mode(void) {
+void disable_raw_mode(void)
+{
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) {
     die("tcsetattr");
   }
@@ -46,7 +48,8 @@ void disable_raw_mode(void) {
  *   c_cflag: control (baud, char size)
  *   c_lflag: local (echo, canonical, signals)
  */
-void enable_raw_mode(void) {
+void enable_raw_mode(void)
+{
   if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) {
     die("tsgetattr");
   }
@@ -86,7 +89,8 @@ void enable_raw_mode(void) {
 
 /*** init ***/
 
-int main(void) {
+int main(void)
+{
   enable_raw_mode();
 
   // Timeout-based read loop (VMIN=0, VTIME=1).
