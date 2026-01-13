@@ -1,10 +1,18 @@
 ---
 Language: C
-BasedOnStyle: K&R
+ColumnLimit: 100
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
 AllowShortBlocksOnASingleLine: Never
 AllowShortIfStatementsOnASingleLine: Never
-AllowShortLoopsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: Empty
+SortIncludes: true
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterStruct: false
+  BeforeElse: false

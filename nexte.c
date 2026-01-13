@@ -26,8 +26,8 @@ struct termios orig_termios;
  */
 void die(const char *s)
 {
-  perror(s);
-  exit(1);
+    perror(s);
+    exit(1);
 }
 
 /*
@@ -36,9 +36,9 @@ void die(const char *s)
  */
 void disable_raw_mode(void)
 {
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) {
-    die("tcsetattr");
-  }
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) {
+        die("tcsetattr");
+    }
 }
 
 /*
@@ -50,69 +50,69 @@ void disable_raw_mode(void)
  */
 void enable_raw_mode(void)
 {
-  if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) {
-    die("tsgetattr");
-  }
-  atexit(disable_raw_mode);
+    if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) {
+        die("tsgetattr");
+    }
+    atexit(disable_raw_mode);
 
-  struct termios raw = orig_termios;
+    struct termios raw = orig_termios;
 
-  // ECHO   - don't echo key presses
-  // ICANON - disable line buffering (read byte-by-byte)
-  // IEXTEN - disable Ctrl+V/O
-  // ISIG   - disable Ctrl+C (SIGINT), Ctrl+Z (SIGTSTP)
-  raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    // ECHO   - don't echo key presses
+    // ICANON - disable line buffering (read byte-by-byte)
+    // IEXTEN - disable Ctrl+V/O
+    // ISIG   - disable Ctrl+C (SIGINT), Ctrl+Z (SIGTSTP)
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
 
-  // Disable output processing - \n no longer automatically becomes \r\n
-  raw.c_oflag &= ~(OPOST);
+    // Disable output processing - \n no longer automatically becomes \r\n
+    raw.c_oflag &= ~(OPOST);
 
-  // BRKINT - no SIGINT on break
-  // ICRNL  - don't map CR to NL (distinguish Enter from Ctrl+J)
-  // INPCK  - no parity check
-  // ISTRIP - don't strip 8th bit
-  // IXON   - disable Ctrl+S/Q flow control
-  raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    // BRKINT - no SIGINT on break
+    // ICRNL  - don't map CR to NL (distinguish Enter from Ctrl+J)
+    // INPCK  - no parity check
+    // ISTRIP - don't strip 8th bit
+    // IXON   - disable Ctrl+S/Q flow control
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
 
-  // Ensure character size is 8 bits per byte
-  raw.c_cflag |= (CS8);
+    // Ensure character size is 8 bits per byte
+    raw.c_cflag |= (CS8);
 
-  // VMIN: min bytes before read() returns (0 = return immediately)
-  // VTIME: max wait time in 1/10s (1 = 100ms timeout)
-  // Together: non-blocking read with 100ms timeout for idle loop
-  raw.c_cc[VMIN] = 0;
-  raw.c_cc[VTIME] = 1;
+    // VMIN: min bytes before read() returns (0 = return immediately)
+    // VTIME: max wait time in 1/10s (1 = 100ms timeout)
+    // Together: non-blocking read with 100ms timeout for idle loop
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 1;
 
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) {
-    die("tcsetattr");
-  }
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) {
+        die("tcsetattr");
+    }
 }
 
 /*** init ***/
 
 int main(void)
 {
-  enable_raw_mode();
+    enable_raw_mode();
 
-  // Timeout-based read loop (VMIN=0, VTIME=1).
-  // read() returns 0 if no input within 100ms, allowing idle processing.
-  // EAGAIN may occur on some systems when read times out - not an error.
-  // Use \r\n since OPOST is disabled (no auto carriage return).
-  while (1) {
-    char c = '\0';
-    if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) {
-      die("read");
+    // Timeout-based read loop (VMIN=0, VTIME=1).
+    // read() returns 0 if no input within 100ms, allowing idle processing.
+    // EAGAIN may occur on some systems when read times out - not an error.
+    // Use \r\n since OPOST is disabled (no auto carriage return).
+    while (1) {
+        char c = '\0';
+        if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) {
+            die("read");
+        }
+
+        if (iscntrl(c)) {
+            printf("%d\r\n", c);
+        } else {
+            printf("%d ('%c')\r\n", c, c);
+        }
+
+        if (c == CTRL_KEY('q')) {
+            break;
+        }
     }
 
-    if (iscntrl(c)) {
-      printf("%d\r\n", c);
-    } else {
-      printf("%d ('%c')\r\n", c, c);
-    }
-
-    if (c == CTRL_KEY('q')) {
-      break;
-    }
-  }
-
-  return 0;
+    return 0;
 }
