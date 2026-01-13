@@ -7,6 +7,12 @@
 #include <termios.h>
 #include <unistd.h>
 
+/*** defines ***/
+
+// Mirrors Ctrl key behavior: clears bits 5-6, mapping 'a'-'z' to 1-26.
+// ASCII designed so Ctrl+letter = letter & 0x1f (same as toggling case via bit 5).
+#define CTRL_KEY(k) ((k) & 0x1f)
+
 /*** data ***/
 
 // Saved original settings; restored on exit so terminal isn't left broken
@@ -99,7 +105,7 @@ int main(void) {
       printf("%d ('%c')\r\n", c, c);
     }
 
-    if (c == 'q') {
+    if (c == CTRL_KEY('q')) {
       break;
     }
   }
