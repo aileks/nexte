@@ -18,14 +18,15 @@ void enable_raw_mode(void) {
 
   /* `ECHO` is a bitflag, defined as 00000000000000000000000000001000 in binary
    *
-   * We use the bitwise-NOT operator on this value to get
+   * For example, we use the bitwise-NOT operator on the ECHO lflag value to get
    * 11111111111111111111111111110111
    *
    * We then bitwise-AND this value with the local flags field, which forces the
    * fourth bit in the flags field to become 0
    *
    * Every other bit retains its current value */
-  raw.c_lflag &= ~(ECHO | ICANON);
+  raw.c_lflag &= ~(ECHO | ICANON | ISIG | IEXTEN);
+  raw.c_iflag &= ~(IXON); // Disable ctrl+s and ctrl+q
 
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
