@@ -1,3 +1,5 @@
+#include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <termios.h>
 #include <unistd.h>
@@ -23,7 +25,7 @@ void enable_raw_mode(void) {
    * fourth bit in the flags field to become 0
    *
    * Every other bit retains its current value */
-  raw.c_lflag &= ~(ECHO);
+  raw.c_lflag &= ~(ECHO | ICANON);
 
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
