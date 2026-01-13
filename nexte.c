@@ -26,7 +26,12 @@ void enable_raw_mode(void) {
    *
    * Every other bit retains its current value */
   raw.c_lflag &= ~(ECHO | ICANON | ISIG | IEXTEN);
-  raw.c_iflag &= ~(IXON); // Disable ctrl+s and ctrl+q
+
+  // Turn off all output processing
+  raw.c_oflag &= ~(OPOST);
+
+  // Disable carriage returns, new lines, ctrl+s/q
+  raw.c_iflag &= ~(ICRNL | IXON);
 
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
@@ -37,9 +42,9 @@ int main(void) {
   char c;
   while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q') {
     if (iscntrl(c)) {
-      printf("%d\n", c);
+      printf("%d\r\n", c);
     } else {
-      printf("%d ('%c')\n", c, c);
+      printf("%d ('%c')\r\n", c, c);
     }
   }
 
