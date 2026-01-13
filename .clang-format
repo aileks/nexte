@@ -1,7 +1,10 @@
 ---
 Language: C
-ColumnLimit: 100
-BreakBeforeBraces: Custom
-BraceWrapping:
-  AfterFunction: true
-  AfterControlStatement: false
+BasedOnStyle: K&R
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+AllowShortBlocksOnASingleLine: Never
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: Empty
