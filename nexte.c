@@ -84,7 +84,8 @@ void enable_raw_mode(void) {
   }
 }
 
-/* Read a single keypress from stdin.
+/*
+ * Read a single keypress from stdin.
  * Returns the character read, blocking until input is available.
  * Uses read() syscall directly to bypass stdio buffering.
  */
@@ -98,6 +99,12 @@ char editorReadKey() {
   }
   return c;
 }
+
+/*** output ***/
+
+void editorRefreshScreen() { write(STDOUT_FILENO, "\x1b[2J", 4); }
+
+/*** input ***/
 
 /*
  * Main input processing loop: read key and handle it.
@@ -120,6 +127,7 @@ int main(void) {
   enable_raw_mode();
 
   while (1) {
+    editorRefreshScreen();
     editorProcessKeys();
   }
 
