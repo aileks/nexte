@@ -84,30 +84,43 @@ void enable_raw_mode(void) {
   }
 }
 
+/* Read a single keypress from stdin.
+ * Returns the character read, blocking until input is available.
+ * Uses read() syscall directly to bypass stdio buffering.
+ */
+char editorReadKey() {
+  int nread;
+  char c;
+  while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
+    if (nread == -1 && errno != EAGAIN) {
+      die("read");
+    }
+  }
+  return c;
+}
+
+/*
+ * Main input processing loop: read key and handle it.
+ * Called repeatedly in main() to process each keystroke.
+ * Currently handles only Ctrl+Q to quit the editor.
+ */
+void editorProcessKeys() {
+  char c = editorReadKey();
+
+  switch (c) {
+  case CTRL_KEY('q'):
+    exit(0);
+    break;
+  }
+}
+
 /*** init ***/
 
 int main(void) {
   enable_raw_mode();
 
-  // Timeout-based read loop (VMIN=0, VTIME=1).
-  // read() returns 0 if no input within 100ms, allowing idle processing.
-  // EAGAIN may occur on some systems when read times out - not an error.
-  // Use \r\n since OPOST is disabled (no auto carriage return).
   while (1) {
-    char c = '\0';
-    if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) {
-      die("read");
-    }
-
-    if (iscntrl(c)) {
-      printf("%d\r\n", c);
-    } else {
-      printf("%d ('%c')\r\n", c, c);
-    }
-
-    if (c == CTRL_KEY('q')) {
-      break;
-    }
+    editorProcessKeys();
   }
 
   return 0;
