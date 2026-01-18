@@ -1,7 +1,6 @@
 /*** includes ***/
 
 #include <asm-generic/ioctls.h>
-#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,11 +16,11 @@
 
 /*** data ***/
 
-// Saved original settings; restored on exit so terminal isn't left broken
+// Editor state: dimensions and original terminal settings
 struct editorConfig {
-  int screenrows;
-  int screencols;
-  struct termios orig_termios;
+  int screenrows;              // Terminal rows (from TIOCGWINSZ)
+  int screencols;              // Terminal columns (from TIOCGWINSZ)
+  struct termios orig_termios; // Saved terminal state for cleanup
 };
 
 struct editorConfig E;
@@ -33,7 +32,9 @@ struct editorConfig E;
  * perror() appends ": <system error string>" to the message.
  */
 void die(const char *s) {
+  // Clear screen before printing error so it's readable
   write(STDOUT_FILENO, "\x1b[2J", 4);
+  // Move cursor to home position
   write(STDOUT_FILENO, "\x1b[H", 3);
 
   perror(s);
@@ -111,6 +112,11 @@ char editorReadKey() {
   return c;
 }
 
+/*
+ * Get terminal window size via ioctl(TIOCGWINSZ).
+ * Returns 0 on success, -1 on failure (fallback to default).
+ * Outputs rows/cols through pointer arguments.
+ */
 int getWindowSize(int *rows, int *cols) {
   struct winsize ws;
 
@@ -125,6 +131,7 @@ int getWindowSize(int *rows, int *cols) {
 
 /*** output ***/
 
+// Render editor content: one tilde (~) per row as placeholder.
 void editorDrawRows() {
   int y;
   for (y = 0; y < E.screenrows; y++) {
@@ -132,6 +139,11 @@ void editorDrawRows() {
   }
 }
 
+/*
+ * Clear screen and redraw content using ANSI escape sequences.
+ * \x1b[2J = clear entire screen
+ * \x1b[H  = move cursor to home (top-left)
+ */
 void editorRefreshScreen() {
   write(STDOUT_FILENO, "\x1b[2J", 4);
   write(STDOUT_FILENO, "\x1b[H", 3);
@@ -151,6 +163,7 @@ void editorProcessKeyPress() {
 
   switch (c) {
   case CTRL_KEY('q'):
+    // Clear screen before exiting for a clean terminal
     write(STDOUT_FILENO, "\x1b[2J", 4);
     write(STDOUT_FILENO, "\x1b[H", 3);
     exit(0);
@@ -160,6 +173,10 @@ void editorProcessKeyPress() {
 
 /*** init ***/
 
+/*
+ * Initialize editor state: get terminal dimensions.
+ * Called once at startup; dies on failure.
+ */
 void initEditor() {
   if (getWindowSize(&E.screenrows, &E.screencols) == -1) {
     die("getWindowSize");
