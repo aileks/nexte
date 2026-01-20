@@ -215,7 +215,7 @@ struct abuf {
 #define ABUF_INIT {NULL, 0}
 
 /*
- * Append string s of length `len` to buffer `ab`.
+ * Append string `s` of length `len` to buffer `ab`.
  * Reallocates buffer to accommodate new bytes, copies data into position.
  * Silently fails (no-op) if realloc returns NULL (out of memory).
  */
@@ -244,7 +244,6 @@ void abFree(struct abuf *ab) { free(ab->b); }
  * Each row displays a tilde (~) as placeholder for text.
  * At row 1/3 of screen height, displays welcome message centered.
  * Uses ANSI escape \x1b[K to clear from cursor to line end (erases leftover content).
- * Appends \r\n between rows (except last) for proper line breaks.
  */
 void editorDrawRows(struct abuf *ab) {
   int y;
@@ -282,9 +281,9 @@ void editorDrawRows(struct abuf *ab) {
  * Uses append buffer to batch all output into a single write() syscall.
  * Sequence: hide cursor -> home cursor -> draw rows -> position cursor -> show cursor.
  * \x1b[?25l = hide cursor (prevents flicker during redraw)
- * \x1b[H    = move cursor to home (top-left)
- * \x1b[?25h = show cursor (restore cursor visibility)
- * \x1b[Y;XH = position cursor at row Y, column X (1-indexed)
+ * \x1b[H    = move cursor to home
+ * \x1b[?25h = show cursor
+ * \x1b[Y;XH = position cursor at row Y, column X
  */
 void editorRefreshScreen() {
   struct abuf ab = ABUF_INIT;
@@ -306,6 +305,10 @@ void editorRefreshScreen() {
 
 /*** input ***/
 
+/*
+ * Update cursor position based on movement key.
+ * Does not check bounds - cursor can move outside visible area.
+ */
 void editorMoveCursor(char key) {
   switch (key) {
   case 'a':
@@ -323,6 +326,11 @@ void editorMoveCursor(char key) {
   }
 }
 
+/*
+ * Process a single keypress from the user.
+ * Reads key, dispatches to handler based on key value.
+ * Ctrl+Q exits; WASD keys move cursor.
+ */
 void editorProcessKeyPress() {
   char c = editorReadKey();
 
