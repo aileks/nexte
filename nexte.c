@@ -37,7 +37,7 @@ enum editorKey {
 
 /*** data ***/
 
-// Editor row: dynamically allocated string holding one line of file content
+// Editor row type: stores a single line of text
 typedef struct erow {
   int size;
   char *chars;
@@ -46,10 +46,11 @@ typedef struct erow {
 // Editor state: cursor position, dimensions, and original terminal settings
 struct editorConfig {
   int cx, cy;
+  int rowoff;
   int screenrows;
   int screencols;
   int numrows;
-  erow *row;
+  erow *row; // grows via realloc as lines are added
   struct termios orig_termios;
 };
 
@@ -260,6 +261,10 @@ int getWindowSize(int *rows, int *cols) {
 
 /*** row operations ***/
 
+/*
+ * Append a new row to the editor's row buffer.
+ * Reallocates the row array to fit one more erow struct.
+ */
 void editorAppendRow(char *s, size_t len) {
   E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1));
   int at = E.numrows;
@@ -274,7 +279,6 @@ void editorAppendRow(char *s, size_t len) {
 
 /*
  * Open and read a file into editor state.
- * getline() handles dynamic buffer allocation.
  */
 void editorOpen(char *filename) {
   FILE *fp = fopen(filename, "r");
@@ -338,6 +342,15 @@ void abFree(struct abuf *ab) { free(ab->b); }
 
 /*** output ***/
 
+void editorScroll() {
+  if (E.cy < E.rowoff) {
+    E.rowoff = E.cy;
+  }
+  if (E.cy >= E.rowoff + E.screenrows) {
+    E.rowoff = E.cy - E.screenrows + 1;
+  }
+}
+
 /*
  * Render editor content rows into buffer for display.
  * Each row displays a tilde (~) as placeholder for text.
@@ -347,8 +360,9 @@ void abFree(struct abuf *ab) { free(ab->b); }
 void editorDrawRows(struct abuf *ab) {
   int y;
   for (y = 0; y < E.screenrows; y++) {
-    if (y >= E.numrows) {
-      if (E.numrows == 0 && y == E.screenrows / 3) {
+    int filerow = y + E.rowoff;
+    if (filerow >= E.numrows) {
+      if (E.numrows == 0 && filerow == E.screenrows / 3) {
         char welcome[80];
         int welcomelen =
             snprintf(welcome, sizeof(welcome), "Nexte editor -- version %s", NEXTE_VERSION);
@@ -369,13 +383,13 @@ void editorDrawRows(struct abuf *ab) {
         abAppend(ab, "~", 1);
       }
     } else {
-      int len = E.row[y].size;
+      int len = E.row[filerow].size;
 
       if (len > E.screencols) {
         len = E.screencols;
       }
 
-      abAppend(ab, E.row[y].chars, len);
+      abAppend(ab, E.row[filerow].chars, len);
     }
 
     abAppend(ab, "\x1b[K", 3);
@@ -395,6 +409,8 @@ void editorDrawRows(struct abuf *ab) {
  * \x1b[Y;XH = position cursor at row Y, column X
  */
 void editorRefreshScreen() {
+  editorScroll();
+
   struct abuf ab = ABUF_INIT;
 
   abAppend(&ab, "\x1b[?25l", 6);
@@ -418,7 +434,6 @@ void editorRefreshScreen() {
  * Update cursor position based on movement key.
  * Does not check bounds - cursor can move outside visible area.
  */
-
 void editorMoveCursor(int key) {
   switch (key) {
   case ARROW_LEFT:
@@ -437,7 +452,7 @@ void editorMoveCursor(int key) {
     }
     break;
   case ARROW_DOWN:
-    if (E.cy != E.screenrows - 1) {
+    if (E.cy < E.numrows) {
       E.cy++;
     }
     break;
@@ -488,6 +503,7 @@ void editorProcessKeyPress() {
 void initEditor() {
   E.cx = 0;
   E.cy = 0;
+  E.rowoff = 0;
   E.numrows = 0;
   E.row = NULL;
 
