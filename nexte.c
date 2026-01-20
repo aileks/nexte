@@ -294,20 +294,22 @@ void editorMoveCursor(char key) {
   }
 }
 
-/*
- * Main input processing loop: read key and handle it.
- * Called repeatedly in main() to process each keystroke.
- * Currently handles only Ctrl+Q to quit the editor.
- */
-void editorProcessKeyPress() {
+// Main input processing loop: read key and handle it.
+void editorProcessKeypress() {
   char c = editorReadKey();
 
   switch (c) {
   case CTRL_KEY('q'):
-    // Clear screen before exiting for a clean terminal
     write(STDOUT_FILENO, "\x1b[2J", 4);
     write(STDOUT_FILENO, "\x1b[H", 3);
     exit(0);
+    break;
+
+  case 'w':
+  case 's':
+  case 'a':
+  case 'd':
+    editorMoveCursor(c);
     break;
   }
 }
