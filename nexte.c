@@ -102,6 +102,9 @@ void enable_raw_mode(void) {
  * Read a single keypress from stdin.
  * Returns the character read, blocking until input is available.
  * Uses read() syscall directly to bypass stdio buffering.
+ * Handles escape sequences from arrow keys (ANSI CSI codes).
+ * Arrow keys send: ESC [ A/B/C/D for up/down/right/left
+ * Maps arrow keys to WASD for movement (w=up, s=down, a=left, d=right).
  */
 char editorReadKey() {
   int nread;
@@ -239,7 +242,8 @@ void abFree(struct abuf *ab) { free(ab->b); }
 /*
  * Render editor content rows into buffer for display.
  * Each row displays a tilde (~) as placeholder for text.
- * Uses ANSI escape \x1b[K to clear from cursor to line end.
+ * At row 1/3 of screen height, displays welcome message centered.
+ * Uses ANSI escape \x1b[K to clear from cursor to line end (erases leftover content).
  * Appends \r\n between rows (except last) for proper line breaks.
  */
 void editorDrawRows(struct abuf *ab) {
@@ -276,10 +280,11 @@ void editorDrawRows(struct abuf *ab) {
 /*
  * Clear screen and redraw content using ANSI escape sequences.
  * Uses append buffer to batch all output into a single write() syscall.
- * Sequence: hide cursor -> home cursor -> draw rows -> home cursor -> show cursor.
- * \x1b[?25l = hide cursor (l = low)
+ * Sequence: hide cursor -> home cursor -> draw rows -> position cursor -> show cursor.
+ * \x1b[?25l = hide cursor (prevents flicker during redraw)
  * \x1b[H    = move cursor to home (top-left)
- * \x1b[?25h = show cursor (h = high)
+ * \x1b[?25h = show cursor (restore cursor visibility)
+ * \x1b[Y;XH = position cursor at row Y, column X (1-indexed)
  */
 void editorRefreshScreen() {
   struct abuf ab = ABUF_INIT;
@@ -290,7 +295,6 @@ void editorRefreshScreen() {
   editorDrawRows(&ab);
 
   char buf[32];
-  // We add 1 to account for 1-based (x, y) coords terminals use
   snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy + 1, E.cx + 1);
   abAppend(&ab, buf, strlen(buf));
 
@@ -319,7 +323,6 @@ void editorMoveCursor(char key) {
   }
 }
 
-// Main input processing loop: read key and handle it.
 void editorProcessKeyPress() {
   char c = editorReadKey();
 
