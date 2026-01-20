@@ -11,19 +11,20 @@
 
 /*** defines ***/
 
+#define NEXTE_VERSION "0.0.1"
+
 // Mirrors Ctrl key behavior: clears bits 5-6, mapping 'a'-'z' to 1-26.
 // ASCII designed so Ctrl+letter = letter & 0x1f (same as toggling case via bit 5).
 #define CTRL_KEY(k) ((k) & 0x1f)
 
-#define NEXTE_VERSION "0.0.1"
-
 /*** data ***/
 
-// Editor state: dimensions and original terminal settings
+// Editor state: cursor position, dimensions, and original terminal settings
 struct editorConfig {
-  int screenrows;              // Terminal rows (from TIOCGWINSZ)
-  int screencols;              // Terminal columns (from TIOCGWINSZ)
-  struct termios orig_termios; // Saved terminal state for cleanup
+  int cx, cy;
+  int screenrows;
+  int screencols;
+  struct termios orig_termios;
 };
 
 struct editorConfig E;
@@ -35,9 +36,7 @@ struct editorConfig E;
  * perror() appends ": <system error string>" to the message.
  */
 void die(const char *s) {
-  // Clear screen before printing error so it's readable
   write(STDOUT_FILENO, "\x1b[2J", 4);
-  // Move cursor to home position
   write(STDOUT_FILENO, "\x1b[H", 3);
 
   perror(s);
@@ -265,7 +264,11 @@ void editorRefreshScreen() {
 
   editorDrawRows(&ab);
 
-  abAppend(&ab, "\x1b[H", 3);
+  char buf[32];
+  // We add 1 to account for 1-based (x, y) coords terminals use
+  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy + 1, E.cx + 1);
+  abAppend(&ab, buf, strlen(buf));
+
   abAppend(&ab, "\x1b[?25h", 6);
 
   write(STDOUT_FILENO, ab.b, ab.len);
@@ -273,6 +276,23 @@ void editorRefreshScreen() {
 }
 
 /*** input ***/
+
+void editorMoveCursor(char key) {
+  switch (key) {
+  case 'a':
+    E.cx--;
+    break;
+  case 'd':
+    E.cx++;
+    break;
+  case 's':
+    E.cy--;
+    break;
+  case 'w':
+    E.cy++;
+    break;
+  }
+}
 
 /*
  * Main input processing loop: read key and handle it.
@@ -299,6 +319,9 @@ void editorProcessKeyPress() {
  * Called once at startup; dies on failure.
  */
 void initEditor() {
+  E.cx = 0;
+  E.cy = 0;
+
   if (getWindowSize(&E.screenrows, &E.screencols) == -1) {
     die("getWindowSize");
   }
