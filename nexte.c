@@ -113,6 +113,12 @@ char editorReadKey() {
   return c;
 }
 
+/*
+ * Query terminal for current cursor position using ANSI escape sequence.
+ * Sends ESC [ 6 n (request) and reads response in format ESC [ ROW ; COL R.
+ * Returns 0 on success, -1 on failure (timeout or malformed response).
+ * Typical response: "\x1b[24;80R" meaning row 24, column 80.
+ */
 int getCursorPosition(int *rows, int *cols) {
   char buf[32];
   size_t i = 0;
@@ -166,29 +172,50 @@ int getWindowSize(int *rows, int *cols) {
 
 /*** append buffer ***/
 
+/*
+ * Append buffer: dynamically growing string buffer for building output.
+ * Avoids many small write() syscalls by collecting bytes in memory first.
+ * Pattern: create struct, append pieces, write once, free.
+ */
 struct abuf {
   char *b;
   int len;
 };
 
+// Constructor-like initializer for empty append buffer
 #define ABUF_INIT {NULL, 0}
 
+/*
+ * Append string s of length `len` to buffer `ab`.
+ * Reallocates buffer to accommodate new bytes, copies data into position.
+ * Silently fails (no-op) if realloc returns NULL (out of memory).
+ */
 void abAppend(struct abuf *ab, const char *s, int len) {
   char *new = realloc(ab->b, ab->len + len);
 
   if (new == NULL) {
     return;
   }
+
   memcpy(&new[ab->len], s, len);
   ab->b = new;
   ab->len += len;
 }
 
+/*
+ * Free dynamically allocated buffer memory.
+ * Called after write() to prevent memory leaks.
+ */
 void abFree(struct abuf *ab) { free(ab->b); }
 
 /*** output ***/
 
-// Render editor content: one tilde (~) per row as placeholder.
+/*
+ * Render editor content rows into buffer for display.
+ * Each row displays a tilde (~) as placeholder for text.
+ * Uses ANSI escape \x1b[K to clear from cursor to line end.
+ * Appends \r\n between rows (except last) for proper line breaks.
+ */
 void editorDrawRows(struct abuf *ab) {
   int y;
   for (y = 0; y < E.screenrows; y++) {
@@ -203,8 +230,11 @@ void editorDrawRows(struct abuf *ab) {
 
 /*
  * Clear screen and redraw content using ANSI escape sequences.
- * \x1b[2J = clear entire screen
- * \x1b[H  = move cursor to home (top-left)
+ * Uses append buffer to batch all output into a single write() syscall.
+ * Sequence: hide cursor -> home cursor -> draw rows -> home cursor -> show cursor.
+ * \x1b[?25l = hide cursor (l = low)
+ * \x1b[H    = move cursor to home (top-left)
+ * \x1b[?25h = show cursor (h = high)
  */
 void editorRefreshScreen() {
   struct abuf ab = ABUF_INIT;
