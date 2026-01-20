@@ -17,6 +17,8 @@
 // ASCII designed so Ctrl+letter = letter & 0x1f (same as toggling case via bit 5).
 #define CTRL_KEY(k) ((k) & 0x1f)
 
+enum editorKey { ARROW_LEFT = 1000, ARROW_RIGHT, ARROW_UP, ARROW_DOWN };
+
 /*** data ***/
 
 // Editor state: cursor position, dimensions, and original terminal settings
@@ -106,7 +108,7 @@ void enable_raw_mode(void) {
  * Arrow keys send: ESC [ A/B/C/D for up/down/right/left
  * Maps arrow keys to WASD for movement (w=up, s=down, a=left, d=right).
  */
-char editorReadKey() {
+int editorReadKey() {
   int nread;
   char c;
   while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
@@ -127,13 +129,13 @@ char editorReadKey() {
     if (seq[0] == '[') {
       switch (seq[1]) {
       case 'A':
-        return 'w';
+        return ARROW_UP;
       case 'B':
-        return 's';
+        return ARROW_DOWN;
       case 'C':
-        return 'd';
+        return ARROW_RIGHT;
       case 'D':
-        return 'a';
+        return ARROW_LEFT;
       }
     }
     return '\x1b';
@@ -309,18 +311,18 @@ void editorRefreshScreen() {
  * Update cursor position based on movement key.
  * Does not check bounds - cursor can move outside visible area.
  */
-void editorMoveCursor(char key) {
+void editorMoveCursor(int key) {
   switch (key) {
-  case 'a':
+  case ARROW_LEFT:
     E.cx--;
     break;
-  case 'd':
+  case ARROW_RIGHT:
     E.cx++;
     break;
-  case 'w':
+  case ARROW_UP:
     E.cy--;
     break;
-  case 's':
+  case ARROW_DOWN:
     E.cy++;
     break;
   }
@@ -332,7 +334,7 @@ void editorMoveCursor(char key) {
  * Ctrl+Q exits; WASD keys move cursor.
  */
 void editorProcessKeyPress() {
-  char c = editorReadKey();
+  int c = editorReadKey();
 
   switch (c) {
   case CTRL_KEY('q'):
@@ -341,10 +343,10 @@ void editorProcessKeyPress() {
     exit(0);
     break;
 
-  case 'w':
-  case 's':
-  case 'a':
-  case 'd':
+  case ARROW_UP:
+  case ARROW_DOWN:
+  case ARROW_LEFT:
+  case ARROW_RIGHT:
     editorMoveCursor(c);
     break;
   }
