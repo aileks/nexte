@@ -24,7 +24,7 @@
 #define CTRL_KEY(k) ((k) & 0x1f)
 
 enum editorKey {
-  ARROW_LEFT = 1000,
+  ARROW_LEFT = 1000, // starting at 1000 avoids collision with ASCII chars
   ARROW_RIGHT,
   ARROW_UP,
   ARROW_DOWN,
@@ -37,7 +37,7 @@ enum editorKey {
 
 /*** data ***/
 
-// Type `erow` stores a row of text
+// Editor row: dynamically allocated string holding one line of file content
 typedef struct erow {
   int size;
   char *chars;
@@ -126,11 +126,8 @@ void enable_raw_mode(void) {
 
 /*
  * Read a single keypress from stdin.
- * Returns the character read, blocking until input is available.
- * Uses read() syscall directly to bypass stdio buffering.
- * Handles escape sequences from arrow keys (ANSI CSI codes).
- * Arrow keys send: ESC [ A/B/C/D for up/down/right/left
- * Maps arrow keys to WASD for movement (w=up, s=down, a=left, d=right).
+ * Returns ASCII character or enum value for special keys.
+ * Parses ANSI escape sequences: ESC [ N ~ for special keys, ESC [ A/D/B/C for arrows.
  */
 int editorReadKey() {
   int nread;
@@ -263,6 +260,10 @@ int getWindowSize(int *rows, int *cols) {
 
 /*** file i/o ***/
 
+/*
+ * Open and read a file into editor state.
+ * getline() handles dynamic buffer allocation.
+ */
 void editorOpen(char *filename) {
   FILE *fp = fopen(filename, "r");
   if (!fp) {
@@ -477,10 +478,6 @@ void editorProcessKeyPress() {
 
 /*** init ***/
 
-/*
- * Initialize editor state: get terminal dimensions.
- * Called once at startup; dies on failure.
- */
 void initEditor() {
   E.cx = 0;
   E.cy = 0;
@@ -490,6 +487,8 @@ void initEditor() {
     die("getWindowSize");
   }
 }
+
+/*** main ***/
 
 int main(int argc, char *argv[]) {
   enable_raw_mode();
