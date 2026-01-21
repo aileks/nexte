@@ -7,20 +7,14 @@ IndentWidth: 2
 TabWidth: 8
 UseTab: Never
 ContinuationIndentWidth: 4
-
-# Function call wrapping + alignment (this is what lines up args)
 AlignAfterOpenBracket: Align
-BinPackArguments: false
+BinPackArguments: true
 AllowAllArgumentsOnNextLine: false
-
-# Other alignment
 AlignOperands: Align
 AlignEscapedNewlines: Right
 AlignTrailingComments:
   Kind: Always
   OverEmptyLines: 0
-
-# Braces / line breaking
 BreakBeforeBraces: Attach
 BraceWrapping:
   AfterCaseLabel: false
@@ -42,15 +36,11 @@ BreakBeforeTernaryOperators: true
 BreakStringLiterals: true
 BreakAdjacentStringLiterals: true
 BreakArrays: true
-
-# Indentation details
 IndentCaseBlocks: true
 IndentCaseLabels: true
 IndentGotoLabels: true
 IndentPPDirectives: None
 PPIndentWidth: -1
-
-# Spacing
 PointerAlignment: Right
 DerivePointerAlignment: false
 SpaceBeforeAssignmentOperators: true
@@ -74,8 +64,6 @@ SpacesInContainerLiterals: true
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
 SpaceAfterOperatorKeyword: false
-
-# Comments / includes
 ReflowComments: Always
 CommentPragmas: '^ IWYU pragma:'
 IncludeBlocks: Preserve
@@ -97,11 +85,9 @@ IncludeCategories:
     CaseSensitive: false
 IncludeIsMainRegex: '(Test)?$'
 MainIncludeChar: Quote
-
-# Empty lines
 MaxEmptyLinesToKeep: 1
 KeepEmptyLines:
-  AtEndOfFile: false
+  AtEndOfFile: true
   AtStartOfBlock: true
   AtStartOfFile: true
 ...

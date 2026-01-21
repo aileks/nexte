@@ -410,10 +410,10 @@ void abFree(struct abuf *ab) { free(ab->b); }
  */
 void editorScroll() {
   E.rx = 0;
+
   if (E.cy < E.numrows) {
     E.rx = editorRowCxToRx(&E.row[E.cy], E.cx);
   }
-
   if (E.cy < E.rowoff) {
     E.rowoff = E.cy;
   }
@@ -442,10 +442,8 @@ void editorDrawRows(struct abuf *ab) {
     if (filerow >= E.numrows) {
       if (E.numrows == 0 && filerow == E.screenrows / 3) {
         char welcome[80];
-        int welcomelen = snprintf(welcome,
-                                  sizeof(welcome),
-                                  "Nexte editor -- version %s",
-                                  NEXTE_VERSION);
+        int welcomelen = snprintf(welcome, sizeof(welcome),
+                                  "Nexte editor -- version %s", NEXTE_VERSION);
 
         if (welcomelen > E.screencols) {
           welcomelen = E.screencols;
@@ -456,9 +454,11 @@ void editorDrawRows(struct abuf *ab) {
           abAppend(ab, "~", 1);
           padding--;
         }
+
         while (padding--) {
           abAppend(ab, " ", 1);
         }
+
         abAppend(ab, welcome, welcomelen);
       } else {
         abAppend(ab, "~", 1);
@@ -477,21 +477,38 @@ void editorDrawRows(struct abuf *ab) {
     }
 
     abAppend(ab, "\x1b[K", 3);
-    if (y < E.screenrows - 1) {
-      abAppend(ab, "\r\n", 2);
-    }
+    abAppend(ab, "\r\n", 2);
   }
+}
+
+/*
+ * Draw a status bar at the bottom of the screen with inverted colors.
+ * Fills the entire width with spaces, then resets text attributes.
+ */
+void editorDrawStatusBar(struct abuf *ab) {
+  // SGR 7: inverted colors for status bar
+  abAppend(ab, "\x1b[7m", 4);
+
+  int len = 0;
+  while (len < E.screencols) {
+    abAppend(ab, " ", 1);
+    len++;
+  }
+
+  // SGR 0: reset all text attributes (bold, underline, etc.)
+  abAppend(ab, "\x1b[m", 3);
 }
 
 /*
  * Clear screen and redraw content using ANSI escape sequences.
  * Uses append buffer to batch all output into a single write() syscall.
- * Sequence: hide cursor -> home cursor -> draw rows -> position cursor -> show
- * cursor.
+ * Sequence: hide cursor -> home cursor -> draw rows -> status bar -> position
+ * cursor -> show cursor.
  * \x1b[?25l = hide cursor (prevents flicker during redraw)
  * \x1b[H    = move cursor to home
  * \x1b[?25h = show cursor
- * \x1b[Y;XH = position cursor at row Y, column X
+ * \x1b[Y;XH = position cursor at rendered position (rx, not cx)
+ * \x1b[m   = SGR 0: reset all text attributes
  */
 void editorRefreshScreen() {
   editorScroll();
@@ -502,12 +519,10 @@ void editorRefreshScreen() {
   abAppend(&ab, "\x1b[H", 3);
 
   editorDrawRows(&ab);
+  editorDrawStatusBar(&ab);
 
   char buf[32];
-  snprintf(buf,
-           sizeof(buf),
-           "\x1b[%d;%dH",
-           (E.cy - E.rowoff) + 1,
+  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1,
            (E.rx - E.coloff) + 1);
 
   abAppend(&ab, buf, strlen(buf));
@@ -521,7 +536,7 @@ void editorRefreshScreen() {
 
 /*
  * Update cursor position based on movement key.
- * Does not check bounds - cursor can move outside visible area.
+ * Handles line wrapping at row boundaries.
  */
 void editorMoveCursor(int key) {
   erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
@@ -565,7 +580,6 @@ void editorMoveCursor(int key) {
 /*
  * Process a single keypress from the user.
  * Reads key, dispatches to handler based on key value.
- * Ctrl+Q exits; WASD keys move cursor.
  */
 void editorProcessKeyPress() {
   int c = editorReadKey();
@@ -625,6 +639,8 @@ void initEditor() {
   if (getWindowSize(&E.screenrows, &E.screencols) == -1) {
     die("getWindowSize");
   }
+
+  E.screenrows -= 1; // reserve bottom row for status bar
 }
 
 int main(int argc, char *argv[]) {
