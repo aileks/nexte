@@ -21,8 +21,8 @@
 #define NEXTE_TAB_STOP 8
 
 // Mirrors Ctrl key behavior: clears bits 5-6, mapping 'a'-'z' to 1-26.
-// ASCII designed so Ctrl+letter = letter & 0x1f (same as toggling case via bit
-// 5).
+// ASCII designed so Ctrl+letter = letter & 0x1f
+// (same as toggling case via bit 5).
 #define CTRL_KEY(k) ((k) & 0x1f)
 
 enum editorKey {
@@ -581,12 +581,20 @@ void editorProcessKeyPress() {
       E.cx = 0;
       break;
     case END_KEY:
-      E.cx = E.screencols - 1;
+      if (E.cy < E.numrows) {
+        E.cx = E.row[E.cy].size;
+      }
       break;
 
     case PAGE_UP:
     case PAGE_DOWN:
       {
+        if (c == PAGE_UP) {
+          E.cy = E.rowoff;
+        } else if (c == PAGE_DOWN) {
+          E.cy = E.rowoff + E.screenrows - 1;
+        }
+
         int times = E.screenrows;
         while (times--) {
           editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);

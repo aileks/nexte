@@ -1,26 +1,26 @@
 ---
 Language: C
 
-# Layout
+# Core layout
 ColumnLimit: 80
 IndentWidth: 2
 TabWidth: 8
 UseTab: Never
 ContinuationIndentWidth: 4
 
-# Function call argument alignment (the key change)
+# Function call wrapping + alignment (this is what lines up args)
 AlignAfterOpenBracket: Align
 BinPackArguments: false
 AllowAllArgumentsOnNextLine: false
 
-# Alignment
+# Other alignment
 AlignOperands: Align
 AlignEscapedNewlines: Right
 AlignTrailingComments:
   Kind: Always
   OverEmptyLines: 0
 
-# Braces / breaking
+# Braces / line breaking
 BreakBeforeBraces: Attach
 BraceWrapping:
   AfterCaseLabel: false
@@ -65,8 +65,6 @@ SpaceBeforeParensOptions:
   AfterNot: false
   AfterOverloadedOperator: false
   AfterPlacementOperator: true
-  AfterRequiresInClause: false
-  AfterRequiresInExpression: false
   BeforeNonEmptyParentheses: false
 SpacesInParens: Never
 SpacesInSquareBrackets: false
@@ -100,7 +98,7 @@ IncludeCategories:
 IncludeIsMainRegex: '(Test)?$'
 MainIncludeChar: Quote
 
-# Misc
+# Empty lines
 MaxEmptyLinesToKeep: 1
 KeepEmptyLines:
   AtEndOfFile: false
