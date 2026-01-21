@@ -57,6 +57,7 @@ struct editorConfig {
   int screencols; // terminal width
   int numrows;    // number of rows in file
   erow *row;      // holds every row in a file
+  char *filename;
   struct termios orig_termios;
 };
 
@@ -342,6 +343,9 @@ void editorAppendRow(char *s, size_t len) {
  * Open and read a file into editor state.
  */
 void editorOpen(char *filename) {
+  free(E.filename);
+  E.filename = strdup(filename); // `strdup` assumes manual freeing of memory
+
   FILE *fp = fopen(filename, "r");
   if (!fp) {
     die("fopen");
@@ -489,10 +493,25 @@ void editorDrawStatusBar(struct abuf *ab) {
   // SGR 7: inverted colors for status bar
   abAppend(ab, "\x1b[7m", 4);
 
-  int len = 0;
+  char status[80], rstatus[80];
+  int len = snprintf(status, sizeof(status), "%.20s - %d lines",
+                     E.filename ? E.filename : "[No Name]", E.numrows);
+  int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", E.cy + 1, E.numrows);
+
+  if (len > E.screencols) {
+    len = E.screencols;
+  }
+
+  abAppend(ab, status, len);
+
   while (len < E.screencols) {
-    abAppend(ab, " ", 1);
-    len++;
+    if (E.screencols - len == rlen) {
+      abAppend(ab, rstatus, rlen);
+      break;
+    } else {
+      abAppend(ab, " ", 1);
+      len++;
+    }
   }
 
   // SGR 0: reset all text attributes (bold, underline, etc.)
@@ -635,6 +654,7 @@ void initEditor() {
   E.coloff = 0;
   E.numrows = 0;
   E.row = NULL;
+  E.filename = NULL;
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1) {
     die("getWindowSize");
