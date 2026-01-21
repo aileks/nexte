@@ -41,21 +41,22 @@ enum editorKey {
 
 // Editor row type: stores a single line of text
 typedef struct erow {
-  int size;
-  int rsize;
-  char *chars;
-  char *render;
+  int size;     // length of raw chars
+  int rsize;    // length of rendered string
+  char *chars;  // raw line content
+  char *render; // rendered line with tabs expanded
 } erow;
 
-// Editor state: cursor position, dimensions, and original terminal settings
+// Editor state: cursor, viewport, dimensions, and original terminal settings
 struct editorConfig {
-  int cx, cy;
-  int rowoff;
-  int coloff;
-  int screenrows;
-  int screencols;
-  int numrows;
-  erow *row;
+  int cx, cy;     // cursor position
+  int rx;         // rendered cursor position
+  int rowoff;     // vertical scroll
+  int coloff;     // horizontal scroll
+  int screenrows; // terminal height
+  int screencols; // terminal width
+  int numrows;    // number of rows in file
+  erow *row;      // holds every row in a file
   struct termios orig_termios;
 };
 
@@ -267,6 +268,27 @@ int getWindowSize(int *rows, int *cols) {
 
 /*** row operations ***/
 
+/*
+ * Convert logical cursor column to rendered column.
+ * Tabs take multiple screen columns but count as one character.
+ */
+int editorRowCxToRx(erow *row, int cx) {
+  int rx = 0;
+  int j;
+  for (j = 0; j < cx; j++) {
+    if (row->chars[j] == '\t') {
+      rx += (NEXTE_TAB_STOP - 1) - (rx % NEXTE_TAB_STOP);
+    }
+
+    rx++;
+  }
+  return rx;
+}
+
+/*
+ * Process tabs in a row: expand them to spaces for display.
+ * Allocates render buffer large enough to hold expanded tabs.
+ */
 void editorUpdateRow(erow *row) {
   int tabs = 0;
   for (int i = 0; i < row->size; i++) {
@@ -276,7 +298,7 @@ void editorUpdateRow(erow *row) {
   }
 
   free(row->render);
-  row->render = malloc(row->size + tabs*(NEXTE_TAB_STOP - 1) + 1);
+  row->render = malloc(row->size + tabs * (NEXTE_TAB_STOP - 1) + 1);
 
   int idx = 0;
   for (int i = 0; i < row->size; i++) {
@@ -382,18 +404,27 @@ void abFree(struct abuf *ab) { free(ab->b); }
 
 /*** output ***/
 
+/*
+ * Adjust viewport to keep cursor visible.
+ * Scrolls when cursor would move outside the viewport.
+ */
 void editorScroll() {
+  E.rx = 0;
+  if (E.cy < E.numrows) {
+    E.rx = editorRowCxToRx(&E.row[E.cy], E.cx);
+  }
+
   if (E.cy < E.rowoff) {
     E.rowoff = E.cy;
   }
   if (E.cy >= E.rowoff + E.screenrows) {
     E.rowoff = E.cy - E.screenrows + 1;
   }
-  if (E.cx < E.coloff) {
-    E.coloff = E.cx;
+  if (E.rx < E.coloff) {
+    E.coloff = E.rx;
   }
-  if (E.cx >= E.coloff + E.screencols) {
-    E.coloff = E.cx - E.screencols + 1;
+  if (E.rx >= E.coloff + E.screencols) {
+    E.coloff = E.rx - E.screencols + 1;
   }
 }
 
@@ -411,8 +442,10 @@ void editorDrawRows(struct abuf *ab) {
     if (filerow >= E.numrows) {
       if (E.numrows == 0 && filerow == E.screenrows / 3) {
         char welcome[80];
-        int welcomelen = snprintf(welcome, sizeof(welcome),
-                                  "Nexte editor -- version %s", NEXTE_VERSION);
+        int welcomelen = snprintf(welcome,
+                                  sizeof(welcome),
+                                  "Nexte editor -- version %s",
+                                  NEXTE_VERSION);
 
         if (welcomelen > E.screencols) {
           welcomelen = E.screencols;
@@ -471,10 +504,13 @@ void editorRefreshScreen() {
   editorDrawRows(&ab);
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1,
-           (E.cx - E.coloff) + 1);
-  abAppend(&ab, buf, strlen(buf));
+  snprintf(buf,
+           sizeof(buf),
+           "\x1b[%d;%dH",
+           (E.cy - E.rowoff) + 1,
+           (E.rx - E.coloff) + 1);
 
+  abAppend(&ab, buf, strlen(buf));
   abAppend(&ab, "\x1b[?25h", 6);
 
   write(STDOUT_FILENO, ab.b, ab.len);
@@ -572,6 +608,7 @@ void editorProcessKeyPress() {
 void initEditor() {
   E.cx = 0;
   E.cy = 0;
+  E.rx = 0;
   E.rowoff = 0;
   E.coloff = 0;
   E.numrows = 0;
