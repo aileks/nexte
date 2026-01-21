@@ -548,9 +548,14 @@ void editorDrawStatusBar(struct abuf *ab) {
 
   // SGR 0: reset all text attributes (bold, underline, etc.)
   abAppend(ab, "\x1b[m", 3);
-  abAppend(ab, "\r\n", 2);
+  abAppend(ab, "\r\n", 2); // move to message bar line
 }
 
+/*
+ * Draw the message bar for temporary status messages.
+ * Displays statusmsg if it's less than 5 seconds old.
+ * Clears line with \x1b[K before displaying.
+ */
 void editorDrawMessageBar(struct abuf *ab) {
   abAppend(ab, "\x1b[K", 3);
   int msglen = strlen(E.statusmsg);
@@ -720,14 +725,14 @@ void initEditor() {
   E.numrows = 0;
   E.row = NULL;
   E.filename = NULL;
-  E.statusmsg[0] = '\0';
-  E.statusmsg_time = 0;
+  E.statusmsg[0] = '\0'; // empty message initially
+  E.statusmsg_time = 0;  // timestamp for message expiration
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1) {
     die("getWindowSize");
   }
 
-  E.screenrows -= 2; // reserve bottom row for status bar
+  E.screenrows -= 2; // reserve bottom 2 rows: status bar + message bar
 }
 
 int main(int argc, char *argv[]) {
